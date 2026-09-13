@@ -4,13 +4,13 @@
 
 ```
 [手机等设备]                       [Windows 11 本机]                 [互联网]
-Clash Meta for Android  ──WLAN──▶  lan-relay.exe        ──PPPoE──▶  校园网/宽带
+兼容clash核心协议的代理软件  ──WLAN──▶  lan-relay.exe        ──PPPoE──▶  校园网/宽带
   全局代理模式                      监听 WLAN IP:7890                 校园网 PPP 适配器
   server=本机IP                    (SOCKS5 + HTTP 混合)              (IP_UNICAST_IF 强制绑定出口)
 ```
 
 - 手机端开启 Clash Meta for Android **全局模式**，代理指向本机 → 本程序是它的上游
-- 本程序收到的所有 TCP / UDP 流量**强制从 PPPoE 拨号接口出站**（不受路由表 metric 影响），并使用宽带侧 DNS 做远程解析
+- 本程序收到的所有 TCP / UDP 流量**强制从 PPPoE 拨号接口出站**，并使用宽带侧 DNS 做远程解析
 - 应用层代理方案：无需开启 Windows 的 IP 路由（IPEnableRouter）、无需配置 NAT/ICS、不改路由表，程序退出零残留
 
 ---
@@ -20,21 +20,21 @@ Clash Meta for Android  ──WLAN──▶  lan-relay.exe        ──PPPoE─
 ### 本机（Windows 11）
 
 1. 确认 WLAN 已连入局域网、有线宽带（PPPoE）已拨号成功
-2. 双击 `start-relay.bat`（自动申请管理员权限以添加防火墙放行规则），或直接运行 `lan-relay.exe`
+2. 双击 `start-relay.bat`，或直接运行 `lan-relay.exe`，需要同意程序的管理员权限申请。
 3. 启动日志会打印关键信息：
 
 ```
 代理入口: 192.168.25.177:7890（SOCKS5 + HTTP 混合，UDP=true）
-状态页: http://192.168.25.177:9090/    Clash 配置下载: http://192.168.25.177:9090/clash.yaml
+状态页: http://192.168.xx.xxx:9090/    Clash 配置下载: http://192.168.xx.xxx:9090/clash.yaml
 ```
 
-同时会在程序目录自动生成 `clash-android.yaml`（已填入本机 WLAN IP）。
+同时会在程序目录自动生成 `clash-android.yaml`。
 
 ### 手机端（Clash Meta for Android）
 
-1. 手机连入**同一 WLAN**，浏览器打开 `http://<本机IP>:9090/clash.yaml` 下载配置（或把 `clash-android.yaml` 文件传到手机导入）
-2. 在 Clash Meta for Android 中导入该配置并启动 VPN
-3. 切换到**全局（Global）模式** —— 配置本身无任何规则，`mode: global` + `MATCH,PC-Relay` 双保险，所有流量直达本机
+1. 手机连入**同一 WLAN**。
+2. 在 Clash Meta for Android 中导入该配置并启动 VPN，建议使用url导入。
+3. 切换到**全局（Global）模式**。
 
 > 配置要点：代理类型 `socks5`、`udp: true`（支持 UDP 应用与 QUIC），DNS 上游 `223.5.5.5#PC-Relay` 也经中转代理送出，fake-ip 模式下域名原样穿过隧道由本机解析。
 
@@ -109,6 +109,8 @@ netstat -ano | grep <lan-relay的PID> | grep ESTABLISHED
 | 某些应用不走代理 | Clash 需处于全局模式；UDP 应用需配置 `udp: true`（默认已开） |
 | 多个候选出口报错 | 配置 `wan:` 显式指定适配器名 |
 
+**如果出现手机完全连接不上代理的情况，建议先检查配置文件是否更新，或者重启局域网路由器后再次更新配置文件**
+
 ---
 
 ## 构建
@@ -116,10 +118,7 @@ netstat -ano | grep <lan-relay的PID> | grep ESTABLISHED
 ```bash
 go build -trimpath -ldflags "-s -w" -o lan-relay.exe .
 go build -o relayprobe.exe ./cmd/relayprobe
-go test ./...        # 单元测试（协议解析、适配器选择、中转、YAML 合法性）
 ```
-
-依赖仅 `golang.org/x/sys`（Windows API）与 `gopkg.in/yaml.v3`（配置），Windows 10/11 x64 可直接运行，无需安装运行库。
 
 ## 目录结构
 
